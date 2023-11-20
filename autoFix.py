@@ -84,38 +84,41 @@ try:
         for tool_call in tool_calls:
             parameter=json.loads(tool_call.function.arguments)["parameter"]
             filepath = json.loads(tool_call.function.arguments)["path"]+json.loads(tool_call.function.arguments)["file"]
-            # Run "cat [filepath]"
+            # Run "cat [filepath]" to get file contents
             result = subprocess.run(f"cat {filepath}",shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            # If the file exists, call "functin calling"
+            # If you get file contents, call "get_value_tools"
             if (result.returncode == 0):
                 # Response value for fix 
                 value_response = openai.chat.completions.create(
                     model="gpt-4-1106-preview",
                     messages=[
                         {"role":"assistant","content":f"Error log is occured due to the contents of configuration file of {filepath}.This contents of configuration file is the follow.\n\n{result.stdout}"},
-                        {"role":"user","content":f"I would like to change the value of {parameter} in {filepath} to fix the following error log. Please tell me the value before fix and the value afiter fix. この時の修正前の値と修正後の値を教えてください。"}
+                        {"role":"user","content":f"I would like to change the value of {parameter} in {filepath} to fix the following error log. Please tell me the value before fix and the value afiter fix."}
                     ],
                     tools=get_value_tools,
                     tool_choice="auto",
                     temperature=0
                 )
                 value_tool_calls=value_response.choices[0].message.tool_calls
-                beforeValue=json.loads(value_tool_calls[0].function.arguments)["before"]
-                afterValue=json.loads(value_tool_calls[0].function.arguments)["after"]
-                dt_now = datetime.datetime.now().strftime('%Y%m%d%H%M%S')                
-                copyCommandResult=subprocess.run(f"cp -p {filepath} {filepath}_{dt_now}",shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                #If successed run that copy command, replace value
-                if(copyCommandResult.returncode==0):
-                    changeCommand=f"sed -i s/\"{beforeValue}\"/\"{afterValue}\"/ {filepath}_{dt_now}"
-                    commandRedult=subprocess.run(f"{changeCommand}",shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                    # If successed run that replace command, return value
-                    if(commandRedult.returncode==0):
-                        print(f"replace {afterValue} from {beforeValue} in {filepath}_{dt_now}")
+                if(value_tool_calls):
+                    beforeValue=json.loads(value_tool_calls[0].function.arguments)["before"]
+                    afterValue=json.loads(value_tool_calls[0].function.arguments)["after"]
+                    dt_now = datetime.datetime.now().strftime('%Y%m%d%H%M%S')                
+                    copyCommandResult=subprocess.run(f"cp -p {filepath} {filepath}_{dt_now}",shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    #If successed run that copy command, replace value
+                    if(copyCommandResult.returncode==0):
+                        changeCommand=f"sed -i s/\"{beforeValue}\"/\"{afterValue}\"/ {filepath}_{dt_now}"
+                        commandRedult=subprocess.run(f"{changeCommand}",shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                        # If successed run that replace command, return value
+                        if(commandRedult.returncode==0):
+                            print(f"replace {afterValue} from {beforeValue} in {filepath}_{dt_now}")
+                    else:
+                            print(copyCommandResult.stderr)
                 else:
-                    print(copyCommandResult.stderr)
+                    print("Did not call value_tool_calls ")
             else:
                 print("file not exited")
     else:
-        print("Did not call functions")
+        print("Did not call get_configfile_path_parameter_tools")
 except Exception as e:
     print(e)
