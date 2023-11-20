@@ -91,10 +91,16 @@ you set monitored Host on "Target list" item.<br>
 
 On the monitored server,Move "/root/" directory and run the below command.
 ```
-dnf install python
+dnf install python git
 pip install openai
 git clone <url>
 ```
+
+you need to fix the ip and target hostname in the following commands in zabbixAutofix.sh
+```bash
+zabbix_sender -z <zabbix server ip> -p 10051 -s "<target hostname>" -k zabbixTrapper -o "$result"
+```
+
 
 # Example
 
